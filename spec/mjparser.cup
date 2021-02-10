@@ -1,0 +1,316 @@
+package rs.ac.bg.etf.pp1;
+
+import java_cup.runtime.*;
+import org.apache.log4j.*;
+
+// import java.io.*;
+import rs.ac.bg.etf.pp1.ast.*;
+
+
+parser code {:
+	
+	boolean errorDetected = false;
+	
+	Logger log = Logger.getLogger(getClass());
+   
+   
+    // slede redefinisani metodi za prijavu gresaka radi izmene teksta poruke
+     
+    public void report_fatal_error(String message, Object info) throws java.lang.Exception {
+      done_parsing();
+      report_error(message, info);
+    }
+  
+    public void syntax_error(Symbol cur_token) {
+        report_error("\nSintaksna greska", cur_token);
+    }
+  
+    public void unrecovered_syntax_error(Symbol cur_token) throws java.lang.Exception {
+        report_fatal_error("Fatalna greska, parsiranje se ne moze nastaviti", cur_token);
+    }
+
+    public void report_error(String message, Object info) {
+    	errorDetected = true;
+    	StringBuilder msg = new StringBuilder(message); 
+    	if (info instanceof Symbol)
+            msg.append (" na liniji ").append(((Symbol)info).left);
+        log.error(msg.toString());
+    }
+    
+    public void report_info(String message, Object info) {
+    	StringBuilder msg = new StringBuilder(message); 
+    	if (info instanceof Symbol)
+            msg.append (" na liniji ").append(((Symbol)info).left);
+        log.info(msg.toString());
+    }
+    
+:}
+
+scan with {:
+	Symbol s = this.getScanner().next_token();
+	if (s != null && s.value != null) 
+		log.info(s.toString() + " " + s.value.toString());
+	return s;
+:}
+
+
+terminal PROG, CONST, CLASS, EXTENDS, VOID;
+terminal IF, ELSE, DO, WHILE, SWITCH, CASE, BREAK, CONTINUE, FOR;
+terminal RETURN, READ, PRINT, NEW;
+terminal PLUS, MINUS, MUL, DIV, MOD;
+terminal ASSIGNMENT, EQUAL, NOT_EQUAL, GREATER, LESSER, GREATER_EQUAL, LESSER_EQUAL;
+terminal OR, AND, INC, DEC;
+terminal SEMI, FULL_STOP, COMMA, LPAREN, RPAREN, LBRACE, RBRACE, LSQUARE, RSQUARE;
+terminal COLON, QUESTION_MARK;
+terminal Integer NUMCONST;
+terminal String IDENT;
+terminal Integer BOOLCONST;
+terminal Character CHARCONST;
+
+nonterminal MethodDeclList, VarDecl, VarIdent, VarIdentList, VarDeclListLocal, VarDeclLocal, VarIdentLocal, VarIdentListLocal;
+nonterminal MethodDecl, MthRetType;
+nonterminal FormPars, FormPar, MayElse, MayMinus, QuestionMark, Colon; 
+nonterminal Assignop, Addop, Mulop, Brcs, Else;
+nonterminal GlobalDeclList, ConstDecl, ConstIdentList, FormParsList, DoNonTerminal;
+
+nonterminal rs.etf.pp1.symboltable.concepts.Obj Program, ProgName, Designator, DesignatorStatement, DesignatorArrName, MthRetTypeAndName;
+nonterminal rs.etf.pp1.symboltable.concepts.Struct Relop, Type, Expr, ExprSingle, Term, Factor, FactorList, TermList, ActPars, ActParsList, Condition, CondTerm, CondFact, ConstIdent, CondFactList, CondTermList, Statement, StatementList, StatementWhile;
+nonterminal VarDeclList;
+ 
+
+precedence left ELSE;
+
+Program ::= (Program) PROG ProgName:p GlobalDeclList LBRACE MethodDeclList RBRACE;
+
+ProgName ::= (ProgName) IDENT:ProgName;
+
+GlobalDeclList ::= 	(DeclListConst) GlobalDeclList ConstDecl
+					|
+					(DeclListVar) GlobalDeclList VarDecl
+					|
+					(NoDecl);
+
+					                   
+ConstDecl ::=	(ConstDecl) CONST Type ConstIdentList SEMI;
+
+ConstIdent ::=	(NumConst) IDENT:name ASSIGNMENT NUMCONST:value
+				|
+				(CharConst) IDENT:name ASSIGNMENT CHARCONST:value
+				|
+				(BoolConst) IDENT:name ASSIGNMENT BOOLCONST:value;
+				
+ConstIdentList ::=	(ConstIdents) ConstIdentList COMMA ConstIdent
+					|
+					(SingleConstIdent) ConstIdent;
+				
+				         
+VarDecl	::=		(VarDecl) Type VarIdentList SEMI;
+
+VarIdent ::=	(VarIdent) IDENT:name Brcs;
+
+Brcs ::=	(Brackets) LSQUARE RSQUARE
+			|
+			(NoBrackets);
+				
+
+VarIdentList ::=	(VarIdents) VarIdentList COMMA VarIdent
+					|
+					(SingleVarIdent) VarIdent;
+              
+				
+VarDeclList ::=	(MoreVarDecl) VarDeclList VarDecl
+				|
+				(SingleVarDecl) VarDecl;
+				
+MethodDeclList ::=	(MoreMethodDecl) MethodDeclList MethodDecl
+					|
+					(SingleMethodDecl) MethodDecl;
+					
+MethodDecl   ::=	(MethodDeclaration) MthRetTypeAndName LPAREN FormPars RPAREN VarDeclListLocal LBRACE StatementList RBRACE;
+
+MthRetTypeAndName ::=	(MthRetTypeAndName) MthRetType IDENT:mthName;
+
+MthRetType ::=	(MthRetTypeClass) Type
+				|
+				(MthRetTypeVoid) VOID;
+					
+VarDeclLocal	::=		(VarDeclLocal) Type VarIdentListLocal SEMI;
+
+VarIdentLocal ::=	(VarIdentLocal) IDENT:name Brcs;
+
+VarIdentListLocal ::=	(VarIdentsLocal) VarIdentListLocal COMMA VarIdentLocal
+					    |
+					    (SingleVarIdentLocal) VarIdentLocal;
+              
+				
+VarDeclListLocal ::=	(MoreVarDeclLocal) VarDeclListLocal VarDeclLocal
+				        |
+				        (NoVarDeclLocal);
+				
+FormPar ::=		(FormPar) Type IDENT:name Brcs;
+		
+				
+				
+FormPars ::=	(FormalPars) FormParsList
+				|
+				(NoFormalPars);
+
+FormParsList ::=	(MorePars) FormPars COMMA FormPar
+					|
+					(SinglePar) FormPar;
+			
+
+Type ::= (Type) IDENT:TypeName;
+
+Statement ::=	(StatementDesignator) DesignatorStatement SEMI
+				|
+				(StatementIFmayElse) IF LPAREN Condition RPAREN Statement MayElse
+				|
+				(StatementDoWhile) DoNonTerminal StatementWhile WHILE LPAREN Condition RPAREN SEMI
+				//|
+				//(StmtWhile) WhileStmt LPAREN Condition RPAREN Statement
+				//|
+				//(StatementFor) FOR LPAREN DesignatorStatement SEMI ConditionFor SEMI DesignatorStatement RPAREN Statement -prijavljuje gresku u parsiranju
+																															//za prvi desgstm
+				|
+				(StatementBreak) BREAK SEMI
+				|
+				(StatementContinue) CONTINUE SEMI
+				|
+				(StatementReturnExpr) RETURN Expr SEMI
+				|
+				(StatementNoReturnExpr) RETURN SEMI
+				|
+				(StatementRead) READ LPAREN Designator RPAREN SEMI
+				|
+				(StatementPrint) PRINT LPAREN Expr COMMA NUMCONST RPAREN SEMI
+				|
+				(StatementNoPrintNumconst) PRINT LPAREN Expr RPAREN SEMI
+				|
+				(StatementStatement) LBRACE StatementList RBRACE;
+				
+DoNonTerminal ::= (DoTerm) DO;
+StatementWhile ::=(StmWhile) Statement;
+//WhileStmt ::= (While) WHILE;
+//ConditionFor ::= (ConFor) Condition;
+
+MayElse ::= (YesElse) Else Statement
+			|
+			(NoELse);
+Else ::= (Else) ELSE;				
+StatementList ::= (MoreStatements) StatementList Statement 
+				  |
+				  (NoStatement);
+				  
+DesignatorStatement ::=	(DesignatorStmAssignop) Designator Assignop Expr
+						|
+						(DesignatorStmActPars) Designator LPAREN ActPars RPAREN
+						|
+						(DesignatorStmInc) Designator INC
+						|
+						(DesignatorStmDec) Designator DEC;
+
+ActPars::= (ActParamas) ActParsList
+			|
+			(NoActParamas);		
+
+ActParsList ::=	(ActParsMoreExpr) ActParsList COMMA Expr
+			|
+			(ActParsSingleExpr) Expr;
+			
+Condition ::=	(Condition) CondTermList;
+
+
+CondTermList ::= (ConditionMoreCondTerm) CondTermList OR CondTerm
+				|
+				(ConditionSingleCondTerm) CondTerm;
+				
+CondTerm ::= (CondTerm) CondFactList;	
+
+
+CondFactList ::=	(CondTermMoreCondFact) CondFactList AND CondFact
+				     |
+				    (CondTermSingleCondFact) CondFact;
+			
+CondFact ::=	(CondFactMoreExpr) ExprSingle Relop ExprSingle 
+				|
+				(CondFactSingleExpr) ExprSingle;
+				
+Expr ::=	(Expression) ExprSingle
+			|
+			(ExpressionTernary) Condition QuestionMark ExprSingle Colon Expr;  
+QuestionMark ::= (QuestionMark) QUESTION_MARK;
+Colon ::= (Colon) COLON;
+
+ExprSingle ::=	(ExprSingleMinusTerm) MayMinus TermList;
+
+                
+MayMinus ::= (YesMinus) MINUS
+			 |
+			 (NoMinus);
+			 		 
+			  
+TermList ::=    (SingleTerm) Term
+			  	|
+			  	(TermAddop) TermList Addop Term;
+			  	
+Term ::=	(TermFactor) FactorList;
+			
+FactorList ::= (FactorListMulop) FactorList Mulop Factor
+              |
+			  (SingleFactor) Factor;
+			
+Factor ::=	(FactorDesignatorActPars) Designator LPAREN ActPars RPAREN
+			|
+			(FactorSingleDesignator) Designator
+			|
+			(FactorNumConst) NUMCONST:value
+			|
+			(FactorCharConst) CHARCONST:value
+			|
+			(FactorBoolConst) BOOLCONST:value
+			|
+			(FactorNewTypeExpr) NEW Type LSQUARE Expr RSQUARE
+			|
+			(FactorExpr) LPAREN Expr RPAREN;
+			
+Designator ::=	(DesignatorIdent) IDENT:name
+				|
+				(DesignatorIdentArray) DesignatorArrName LSQUARE Expr RSQUARE;
+				
+DesignatorArrName ::= (DesignatorArrName) IDENT:name;
+
+					
+Assignop ::=	(AssignopAssignment) ASSIGNMENT;
+
+
+Relop ::=	(RelopEqual) EQUAL
+			|
+			(RelopNotEqual) NOT_EQUAL
+			|
+			(RelopGreater) GREATER
+			|
+			(RelopGreaterEqual) GREATER_EQUAL
+			|
+			(RelopLesser) LESSER
+			|
+			(RelopLesserEqual) LESSER_EQUAL;
+			
+Addop ::=	(AddopPlus) PLUS
+			|
+			(AddopMinus) MINUS;
+			
+Mulop ::=	(MulopMul) MUL
+			|
+			(MulopDiv) DIV
+			|
+			(MulopMod) MOD;
+			  	
+				
+
+
+
+
+	
+				  
+
