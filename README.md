@@ -1,10 +1,10 @@
 # MicroJava-Compiler
 
 Generisanje lexera:
-mj.lexer
+spec\mjlexer.flex
 
 Generisanje parsera:
-mjparser.cup
+spec\mjparser.cup
 
 Kompajliranje:
 test\program.mj
